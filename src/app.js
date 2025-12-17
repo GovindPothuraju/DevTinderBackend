@@ -2,11 +2,18 @@ const express=require('express');
 
 const app=express();
 
-app.use('/test',(req,res)=>{
-    res.send('hello from govidha');
+
+
+app.get('/test',(req,res)=>{
+    
+    res.send('get request called');
 })
 
-const port=7777;
+app.post('/test/:userId',(req,res)=>{
+    res.send(req.params);
+})
+
+const port=3000;
 app.listen(port,()=>{
     console.log(`Server is running on port ${port}`);
 })
