@@ -1,73 +1,118 @@
 const express=require('express');
-const connectDB = require('./config/database');
-
 const app=express();
+
+const connectDB = require('./config/database');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const bcrypt=require('bcrypt');
 const User=require('./models/user');
 
 app.use(express.json());
+app.use(cookieParser());
 
-app.post('/signup',async (req,res)=>{
-    const user = new User(req.body);
+const {validateSignupData}=require('./utils/validate');
+const {userAuth}=require('./middlewares/auth');
+
+// Signup route
+app.post("/signup", async (req, res) => {
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    // 1️ Validate input
+    await validateSignupData(req);
+
+    // 2️ Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered",
+      });
+    }
+
+    // 3️ Hash password (secure)
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // 4️ Create user
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+    });
+
+    // 5️ Save to DB
+    await user.save();
+
+    // 6️ Send safe response
+    res.status(201).json({
+      success: true,
+      message: "User signed up successfully",
+    });
+
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || "Signup failed",
+    });
+  }
+});
+
+// login route
+app.post("/login",async (req,res)=>{
+
     try{
-        await user.save();
-        res.status(201).send("User registered successfully");
+        const {email,password}=req.body;
+        //validate email
+        const user=await User.findOne({email});
+        if(!user){
+            throw new Error("Invalid email or password");
+        }
+        // validate password
+        const isMath=await user.validatePassword(password); // use usershema to more readable and testable
+        if(!isMath){
+            throw new Error("Invalid email or password");
+        }
+        // create a jwt token and send response
+        const jwtToken = await user.getJWT(); // use userchema to more readable and testable
+        //create cookie and send response
+        res.cookie("token",jwtToken,{httpOnly:true, expires: new Date(Date.now()+3600000)});
+
+        res.status(200).json({
+        success:true,
+        message:"Login successful"
+        });
     }catch(err){
-        res.status(500).send(err);
+        res.status(400).json({
+        success:false,
+        message:err.message || "Login failed"
+        });
     }
 })
 
-app.get('/user',async (req,res)=>{
-    const emailId=req.body.email;
+app.get('/user',userAuth,async (req,res)=>{
+    
     try{
-        console.log("Fetching users with email:", emailId);
-        const users=await User.findOne({email:emailId});
-        res.send(users);
+        const user=req.user;
+        res.send(user);
     }catch(err){
-        res.status(500).send("Error fetching users");
+        res.status(500).send("Message:"+err.message);
     }
 });
 
-app.get("/feed",async (req,res)=>{
+app.patch('/user',userAuth,async (req,res)=>{
     try{
-        const users=await User.find({});
-        if(users.length===0){
-            return res.status(404).send("No users found");
-        }
-        res.send(users);
+        const user=req.user;
+        const updates = req.body;
+        Object.keys(updates).forEach(key => {
+            user[key] = updates[key];
+        });
+        await user.save();
+        res.send(user);
     }catch(err){
-        res.status(500).send("Error fetching users");
+        res.status(500).send("Message:"+err.message);
     }
-})
-
-app.delete("/user",async (req,res)=>{
-    const emailId=req.body.email;
-    try{
-        console.log("Deleting user with email:", emailId);
-        const user=await User.findOneAndDelete({email:emailId});
-        if(!user){
-            return res.status(404).send("User not found");
-        }
-        res.send("User deleted successfully");
-    }catch(err){
-        res.status(500).send("Error deleting user");
-    }
-})
-
-app.patch("/user/:userId",async (req,res)=>{
-    const data=req.body;
-    const userId=req.params.userId;
-    try{
-        const allowed=['firstName','lastName','age','gender','photo','skills'];
-        const isAllowed=Object.keys(data).every(key=>allowed.includes(key));
-        if(!isAllowed){
-            return res.status(400).send("Invalid fields to update");
-        }
-        await User.findByIdAndUpdate(userId,data,{new:true,runValidators:true});
-        res.send("User updated successfully");
-    }catch(err){
-        res.status(500).send("Error updating user");
-    }
-})
+});
 
 connectDB().then(()=>{
     console.log("Database connected successfully");
