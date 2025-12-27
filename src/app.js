@@ -15,8 +15,6 @@ app.use('/',authRouter);
 app.use('/',profileRouter);
 
 
-
-
 connectDB().then(()=>{
     console.log("Database connected successfully");
     const port=3000;
