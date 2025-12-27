@@ -1,0 +1,80 @@
+
+const express=require('express');
+const authRouter=express.Router();
+
+// -- 🔐 AUTHENTICATION ROUTER
+// - POST /auth/signup      → Register new user
+// - POST /auth/login       → Login user (JWT / session)
+// - POST /auth/logout      → Logout user (clear token / session)
+
+const {validateSignupData}=require('../utils/validate');
+const User=require('../models/user');
+const bcrypt=require('bcrypt');
+
+
+authRouter.post("/signup",async (req, res)=>{
+  try{
+    //validate user data
+    await validateSignupData(req);
+    //check if user exists
+    const {firstName,lastName,email,password}=req.body;
+    const existingUser=await User.findOne({email});
+    if(existingUser){
+      return res.status(409).json({
+        success:false,
+        message:"Email already registered"
+      });
+    }
+    // pasword hashing
+    const passwordHashed = await bcrypt.hash(password,10);
+    //createuser and save to db
+    const newUser=new User({firstName,lastName,email,password:passwordHashed});
+
+    await newUser.save();
+    res.status(201).json({
+      success:true,
+      message:"User signed up successfully"
+    })
+  }catch(err){
+    res.status(400).json({
+      success:false,
+      message:err.message || "Signup failed"
+    });
+  }
+})
+
+authRouter.post("/login",async (req,res)=>{
+
+    try{
+        const {email,password}=req.body;
+        //validate email
+        const user=await User.findOne({email});
+        if(!user){
+            throw new Error("Invalid email or password");
+        }
+        // validate password
+        const isMath=await user.validatePassword(password); // use usershema to more readable and testable
+        if(!isMath){
+            throw new Error("Invalid email or password");
+        }
+        // create a jwt token and send response
+        const jwtToken = await user.getJWT(); // use userchema to more readable and testable
+        //create cookie and send response
+        res.cookie("token",jwtToken,{httpOnly:true, expires: new Date(Date.now()+3600000)});
+
+        res.status(200).json({
+        success:true,
+        message:"Login successful"
+        });
+    }catch(err){
+        res.status(400).json({
+        success:false,
+        message:err.message || "Login failed"
+        });
+    }
+})
+
+
+
+
+module.exports=authRouter;
