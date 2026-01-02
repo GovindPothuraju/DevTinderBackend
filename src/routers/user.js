@@ -4,7 +4,7 @@ const userRouter=express.Router();
 
 const {userAuth}= require('../middlewares/auth');
 const ConnectionRequest = require('../models/connectionRequest');
-
+const USER_SAFE_DATA= ["firstName","lastName","gender","skills"];
 // -- USER ROUTER
 //  - GET /users/requests/received    → Incoming requests
 // - GET /users/connections   → My matches
@@ -34,5 +34,30 @@ userRouter.get('/users/requests/received',userAuth,async(req,res)=>{
     })
   }
 });
+
+userRouter.get('/users/requests',userAuth,async (req,res)=>{
+  try{
+
+    const loggedInUser=req.user;
+    const connectionRequests=await ConnectionRequest.find({
+      $or:[{fromUserId:loggedInUser._id ,status:"accepted"},{toUserId:loggedInUser._id,status:"accepted"}]
+    }).populate("fromUserId",USER_SAFE_DATA).populate("toUserId",USER_SAFE_DATA);
+
+    const data=connectionRequests.map(row => {
+      if(row.fromUserId._id.equals(loggedInUser._id)){
+        return row.toUserId;
+      }
+      return row.fromUserId;
+    })
+
+    return res.json({data});
+
+  }catch(err){
+      res.status(500).json({
+        success: false,
+        message: "Invalid connection request: " + err.message
+      });
+    }
+})
 
 module.exports=userRouter;
