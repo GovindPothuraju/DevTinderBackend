@@ -7,6 +7,11 @@ const bcrypt = require("bcrypt");
 const {userAuth}=require('../middlewares/auth');
 const {validateProfileUpdate}=require('../utils/validate');
 
+// -- PROFILE ROUTER
+// - GET    /profile           → View own profile
+// - PATCH  /profile           → Edit profile details
+// - PATCH  /profile/password  → Change password
+
 profileRouter.get('/user',userAuth,async (req,res)=>{
     
     try{
