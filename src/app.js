@@ -20,6 +20,9 @@ app.use('/',profileRouter);
 app.use('/',requestRouter);
 app.use('/',userRouter);
 
+app.get("/healthz", (req, res) => {
+  res.status(200).send("OK");
+});
 
 connectDB().then(()=>{
     console.log("Database connected successfully");
