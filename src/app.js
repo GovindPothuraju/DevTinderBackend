@@ -21,7 +21,7 @@ app.use('/',requestRouter);
 app.use('/',userRouter);
 
 app.get("/healthz", (req, res) => {
-  res.status(200).send("OK");
+  res.status(200).send("Hii you Backend works properly");
 });
 
 connectDB().then(()=>{
