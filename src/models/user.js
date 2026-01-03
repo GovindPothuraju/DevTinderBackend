@@ -39,6 +39,7 @@ userSchema.methods.validatePassword =async function(passwordInputByUser){
     return ispasswordValid;
 }
 
+
 userSchema.methods.getJWT = async function(){
     const user=this;
     const token =await jwt.sign({_id: user._id},"mysecretkey",{expiresIn:"1h"});
