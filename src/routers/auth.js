@@ -62,7 +62,17 @@ authRouter.post("/login",async (req,res)=>{
         //create cookie and send response
         res.cookie("token",jwtToken,{httpOnly:true, expires: new Date(Date.now()+3600000)});
 
-        res.status(200).send(user);
+        res.status(200).json({
+          success: true,
+          message: "Login successful",
+          user: {
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            photo: user.photo
+          }
+        });
     }catch(err){
         res.status(400).json({
         success:false,
