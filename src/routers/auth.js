@@ -60,7 +60,12 @@ authRouter.post("/login",async (req,res)=>{
         // create a jwt token and send response
         const jwtToken = await user.getJWT(); // use userchema to more readable and testable
         //create cookie and send response
-        res.cookie("token",jwtToken,{httpOnly:true, expires: new Date(Date.now()+3600000)});
+        res.cookie("token",jwtToken,{
+          httpOnly: true,
+          secure: false,
+          sameSite: "lax",
+          expires: new Date(Date.now() + 3600000),
+        });
 
         res.status(200).json({
           success: true,
