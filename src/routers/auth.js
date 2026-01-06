@@ -64,7 +64,7 @@ authRouter.post("/login",async (req,res)=>{
           httpOnly: true,
           secure: true,          // REQUIRED for Render (HTTPS)
           sameSite: "None", 
-          expires: new Date(Date.now() + 3600000),
+          maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.status(200).json({
