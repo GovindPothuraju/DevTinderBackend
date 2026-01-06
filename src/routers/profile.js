@@ -12,17 +12,17 @@ const {validateProfileUpdate}=require('../utils/validate');
 // - PATCH  /profile           → Edit profile details
 // - PATCH  /profile/password  → Change password
 
-profileRouter.get('/user',userAuth,async (req,res)=>{
+profileRouter.get('/profile/view',userAuth,async (req,res)=>{
     
     try{
         const user=req.user;
         res.send(user);
     }catch(err){
-        res.status(500).send("Message:"+err.message);
+        res.status(401).send("Message:"+err.message);
     }
 });
 
-profileRouter.patch('/user',userAuth,async (req,res)=>{
+profileRouter.patch('/profile/edit',userAuth,async (req,res)=>{
     try{
         //Validate (throws error if invalid)
       validateProfileUpdate(req);
@@ -51,7 +51,7 @@ profileRouter.patch('/user',userAuth,async (req,res)=>{
     }
 });
 
-profileRouter.patch('/user/password',userAuth,async (req,res)=>{
+profileRouter.patch('/profile/password',userAuth,async (req,res)=>{
   try{
     // 1 validate input
     const { oldPassword, newPassword, confirmPassword }=req.body;
