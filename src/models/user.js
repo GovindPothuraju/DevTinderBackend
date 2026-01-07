@@ -28,8 +28,22 @@ const userSchema=new mongoose.Schema({
             throw new Error("Photo must be a valid URL");
         }
     }},
-    skills:{type :[String]}
-},{timestamps:true})
+    skills:{type :[String]},
+    about: {
+        type: String,
+        trim: true,
+        minlength: [10, "About section must be at least 10 characters"],
+        maxlength: [300, "About section cannot exceed 300 characters"],
+        validate(value) {
+        if (!value || value.trim().length === 0) {
+            throw new Error("About cannot be empty");
+        }
+        if (/<[^>]*>/.test(value)) {
+            throw new Error("About must not contain HTML tags");
+        }
+        },
+    },
+    },{timestamps:true})
 
 userSchema.methods.validatePassword =async function(passwordInputByUser){
     const user=this;
