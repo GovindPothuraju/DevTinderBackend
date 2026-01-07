@@ -4,7 +4,7 @@ const userRouter=express.Router();
 
 const {userAuth}= require('../middlewares/auth');
 const ConnectionRequest = require('../models/connectionRequest');
-const USER_SAFE_DATA= ["firstName","lastName","gender","skills","age","photo"];
+const USER_SAFE_DATA= ["firstName","lastName","gender","skills","age","photo","about"];
 const User=require("../models/user");
 // -- USER ROUTER
 //  - GET /users/requests/received    → Incoming requests
