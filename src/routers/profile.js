@@ -55,7 +55,7 @@ profileRouter.patch('/profile/edit',userAuth,async (req,res)=>{
         data: loggedInUser
       });
     }catch(err){
-        res.json({
+        res.status(400).json({
             error: "Update failed",
             message: err.message
         })
