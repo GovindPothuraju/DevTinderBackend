@@ -16,7 +16,18 @@ profileRouter.get('/profile/view',userAuth,async (req,res)=>{
     
     try{
         const user=req.user;
-        res.send(user);
+        const safeUser = {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          photo: user.photo,
+          skills: user.skills,
+          age: user.age,
+          gender: user.gender,
+          about: user.about,
+        };
+
+        res.status(200).json(safeUser);
     }catch(err){
         res.status(401).send("Message:"+err.message);
     }
