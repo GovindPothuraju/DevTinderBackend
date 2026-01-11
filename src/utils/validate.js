@@ -71,7 +71,7 @@ const validateProfileUpdate = (req) => {
     }
   }
 
-  if (about && (about.trim().length < 2 || about.trim().length > 200)) {
+  if (about && (about.trim().length < 2 || about.trim().length > 300)) {
     throw new Error("About must be between 2 and 200 characters");
   }
 };
