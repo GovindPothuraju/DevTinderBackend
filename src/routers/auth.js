@@ -33,7 +33,17 @@ authRouter.post("/signup",async (req, res)=>{
     await newUser.save();
     res.status(201).json({
       success:true,
-      message:"User signed up successfully"
+      message:"User signed up successfully",
+      user: {
+            _id: newUser._id,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            email: newUser.email,
+            photo: newUser.photo,
+            age:newUser.age,
+            gender:newUser.gender,
+            about:newUser.about
+          }
     })
   }catch(err){
     res.status(400).json({
@@ -75,7 +85,10 @@ authRouter.post("/login",async (req,res)=>{
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
-            photo: user.photo
+            photo: user.photo,
+            age:user.age,
+            gender:user.gender,
+            about:user.about
           }
         });
     }catch(err){
