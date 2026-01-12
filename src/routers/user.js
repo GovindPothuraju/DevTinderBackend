@@ -5,7 +5,7 @@ const userRouter=express.Router();
 const {userAuth}= require('../middlewares/auth');
 const ConnectionRequest = require('../models/connectionRequest');
 const USER_SAFE_DATA =
-  "firstName lastName gender skills age photo about";
+  "_id firstName lastName gender skills age photo about";
 const User=require("../models/user");
 // -- USER ROUTER
 //  - GET /users/requests/received    → Incoming requests
@@ -37,30 +37,34 @@ userRouter.get('/users/requests/received',userAuth,async(req,res)=>{
   }
 });
 
-userRouter.get('/users/connections',userAuth,async (req,res)=>{
-  try{
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+  try {
+    const loggedInUser = req.user;
 
-    const loggedInUser=req.user;
-    const connectionRequests=await ConnectionRequest.find({
-      $or:[{fromUserId:loggedInUser._id ,status:"accepted"},{toUserId:loggedInUser._id,status:"accepted"}]
-    }).populate("fromUserId",USER_SAFE_DATA).populate("toUserId",USER_SAFE_DATA);
+    const connectionRequests = await ConnectionRequest.find({
+      $or: [
+        { toUserId: loggedInUser._id, status: "accepted" },
+        { fromUserId: loggedInUser._id, status: "accepted" },
+      ],
+    })
+      .populate("fromUserId", USER_SAFE_DATA)
+      .populate("toUserId", USER_SAFE_DATA);
+     
 
-    const data=connectionRequests.map(row => {
-      if(row.fromUserId._id.equals(loggedInUser._id)){
+    const data = connectionRequests.map((row) => {
+      if (row.fromUserId._id.toString() === loggedInUser._id.toString()) {
         return row.toUserId;
       }
       return row.fromUserId;
-    })
+    });
+    res.json({ data });
+  } catch (err) {
+    res.status(400).send({ message: err.message });
+  }
+});
 
-    return res.json({data});
 
-  }catch(err){
-      res.status(500).json({
-        success: false,
-        message: "Invalid connection request: " + err.message
-      });
-    }
-})
+
 
 userRouter.get('/feed', userAuth, async (req, res) => {
   try {

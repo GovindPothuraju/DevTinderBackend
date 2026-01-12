@@ -37,7 +37,8 @@ authRouter.post("/signup",async (req, res)=>{
           httpOnly: true,
           secure: true,          // REQUIRED for Render (HTTPS)
           sameSite: "None", 
-          maxAge: 7 * 24 * 60 * 60 * 1000
+          maxAge: 3 * 24 * 60 * 60 * 1000,
+          expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
         });
 
     res.status(201).json({
@@ -82,7 +83,8 @@ authRouter.post("/login",async (req,res)=>{
           httpOnly: true,
           secure: true,          // REQUIRED for Render (HTTPS)
           sameSite: "None", 
-          maxAge: 7 * 24 * 60 * 60 * 1000
+          maxAge: 3 * 24 * 60 * 60 * 1000,
+          expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
         });
 
         res.status(200).json({
