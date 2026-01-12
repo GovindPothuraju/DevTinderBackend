@@ -37,7 +37,7 @@ userRouter.get('/users/requests/received',userAuth,async(req,res)=>{
   }
 });
 
-userRouter.get('/users/requests',userAuth,async (req,res)=>{
+userRouter.get('/users/connections',userAuth,async (req,res)=>{
   try{
 
     const loggedInUser=req.user;
