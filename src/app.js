@@ -3,10 +3,6 @@ const express=require('express');
 const app=express();
 const cors=require("cors");
 
-//for socket io
-const http = require('http');
-const { initializeServer } = require('./utils/socket');
-
 
 const connectDB = require('./config/database');
 const cookieParser = require('cookie-parser');
@@ -34,13 +30,11 @@ app.get("/healthz", (req, res) => {
   res.status(200).send("finally you deployed backend code");
 });
 
-const server = http.createServer(app);
-initializeServer(server);
 
 connectDB().then(()=>{
     console.log("Database connected successfully");
     const port=process.env.PORT || 3000;
-    server.listen(port,()=>{
+    app.listen(port,()=>{
         console.log(`Server is running on port ${port}`);
     })
 }).catch((err)=>{
