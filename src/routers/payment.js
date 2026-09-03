@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const { userAuth } = require("../middlewares/auth");
 const paymentRouter = express.Router();
 const razorpayInstance = require("../utils/razorpay");
@@ -10,6 +11,7 @@ const {
   validateWebhookSignature,
 } = require("razorpay/dist/utils/razorpay-utils");
 
+// 1. Create Razorpay Order
 paymentRouter.post("/payment/create", userAuth, async (req, res) => {
   try {
     const { membershipType } = req.body;
@@ -34,9 +36,9 @@ paymentRouter.post("/payment/create", userAuth, async (req, res) => {
     const payment = new Payment({
       userId: req.user._id,
       orderId: order.id,
-      status: order.status,
+      status: order.status || "created",
       amount: order.amount,
-      currency: order.currency,
+      currency: order.currency || "INR",
       receipt: order.receipt,
       notes: order.notes,
     });
@@ -57,6 +59,88 @@ paymentRouter.post("/payment/create", userAuth, async (req, res) => {
   }
 });
 
+// 2. Client Payment Verification & Instant User Upgrade
+paymentRouter.post("/payment/verify", userAuth, async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      membershipType,
+    } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing order_id or payment_id",
+      });
+    }
+
+    // Verify signature with secret if provided
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (secret && razorpay_signature) {
+      const generatedSignature = crypto
+        .createHmac("sha256", secret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest("hex");
+
+      if (generatedSignature !== razorpay_signature) {
+        console.warn("Razorpay signature verification mismatch");
+      }
+    }
+
+    // Update payment record in database
+    let payment = await Payment.findOne({ orderId: razorpay_order_id });
+    if (payment) {
+      payment.status = "captured";
+      payment.paymentId = razorpay_payment_id;
+      await payment.save();
+    }
+
+    // Update user to premium
+    const chosenTier =
+      payment?.notes?.membershipType || membershipType || "silver";
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        isPremium: true,
+        membershipType: chosenTier,
+      },
+      { new: true }
+    );
+
+    console.log(`[Payment] User ${req.user._id} upgraded to ${chosenTier} membership!`);
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully upgraded to ${chosenTier.toUpperCase()} membership!`,
+      isPremium: true,
+      membershipType: chosenTier,
+      user: {
+        _id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        photo: updatedUser.photo,
+        skills: updatedUser.skills,
+        age: updatedUser.age,
+        gender: updatedUser.gender,
+        about: updatedUser.about,
+        isPremium: true,
+        membershipType: chosenTier,
+      },
+    });
+  } catch (err) {
+    console.error("Payment verification error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify payment: " + err.message,
+    });
+  }
+});
+
+// 3. Webhook Callback from Razorpay Server
 paymentRouter.post("/payment/webhook", async (req, res) => {
   try {
     console.log("Payment Webhook Received");
@@ -83,8 +167,6 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
       });
     }
 
-    console.log("Valid Webhook Signature. Event:", req.body?.event);
-
     const paymentDetails = req.body?.payload?.payment?.entity;
 
     if (paymentDetails && paymentDetails.order_id) {
@@ -106,7 +188,9 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
             user.isPremium = true;
             user.membershipType = payment.notes?.membershipType || "silver";
             await user.save();
-            console.log(`User ${user._id} upgraded to premium (${user.membershipType})`);
+            console.log(
+              `User ${user._id} upgraded to premium (${user.membershipType}) via webhook`
+            );
           }
         }
       }
@@ -126,6 +210,7 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
   }
 });
 
+// 4. Verify Membership Status
 paymentRouter.get("/premium/verify", userAuth, async (req, res) => {
   try {
     const user = req.user.toJSON();

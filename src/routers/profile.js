@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 
 const { userAuth } = require("../middlewares/auth");
 const { validateProfileUpdate } = require("../utils/validate");
+const User = require("../models/user");
 
 // -- PROFILE ROUTER
 // - GET    /profile/view      → View own profile
@@ -20,7 +21,8 @@ profileRouter.get("/profile/view", userAuth, async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       photo: user.photo,
-      skills: user.skills,
+      role: user.role || "Software Engineer",
+      skills: user.skills || [],
       age: user.age,
       gender: user.gender,
       about: user.about,
@@ -39,38 +41,58 @@ profileRouter.get("/profile/view", userAuth, async (req, res) => {
 
 profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
   try {
-    // Validate (throws error if invalid)
+    // 1. Validate fields
     validateProfileUpdate(req);
 
-    // Update logged-in user
     const loggedInUser = req.user;
     const updates = req.body;
 
-    Object.keys(updates).forEach((key) => {
-      loggedInUser[key] = updates[key];
+    const allowedFields = [
+      "firstName",
+      "lastName",
+      "age",
+      "gender",
+      "photo",
+      "skills",
+      "about",
+      "role",
+    ];
+
+    allowedFields.forEach((key) => {
+      if (updates[key] !== undefined) {
+        if (key === "age") {
+          loggedInUser.age =
+            updates.age === "" || updates.age === null
+              ? undefined
+              : Number(updates.age);
+        } else {
+          loggedInUser[key] = updates[key];
+        }
+      }
     });
 
-    await loggedInUser.save();
+    const savedUser = await loggedInUser.save();
 
-    // Success response
     res.status(200).json({
       success: true,
-      message: `${loggedInUser.firstName} profile updated successfully`,
+      message: `${savedUser.firstName} profile updated successfully`,
       data: {
-        _id: loggedInUser._id,
-        firstName: loggedInUser.firstName,
-        lastName: loggedInUser.lastName,
-        email: loggedInUser.email,
-        photo: loggedInUser.photo,
-        skills: loggedInUser.skills,
-        age: loggedInUser.age,
-        gender: loggedInUser.gender,
-        about: loggedInUser.about,
-        isPremium: loggedInUser.isPremium || false,
-        membershipType: loggedInUser.membershipType || null,
+        _id: savedUser._id,
+        firstName: savedUser.firstName,
+        lastName: savedUser.lastName,
+        email: savedUser.email,
+        photo: savedUser.photo,
+        role: savedUser.role || "Software Engineer",
+        skills: savedUser.skills,
+        age: savedUser.age,
+        gender: savedUser.gender,
+        about: savedUser.about,
+        isPremium: savedUser.isPremium || false,
+        membershipType: savedUser.membershipType || null,
       },
     });
   } catch (err) {
+    console.error("Profile edit error:", err);
     res.status(400).json({
       success: false,
       error: "Update failed",

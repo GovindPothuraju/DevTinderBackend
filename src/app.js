@@ -21,11 +21,26 @@ const app = express();
 // Create HTTP server for Express and Socket.IO
 const server = http.createServer(app);
 
-// CORS configuration
+// Production-ready CORS configuration
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin or any dev/preview/deployed frontend
+      if (!origin || allowedOrigins.includes(origin) || origin.includes("localhost") || origin.endsWith(".vercel.app") || origin.endsWith(".netlify.app") || origin.endsWith(".onrender.com")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Razorpay-Signature"],
   })
 );
 

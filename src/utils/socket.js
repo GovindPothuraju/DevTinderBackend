@@ -3,6 +3,10 @@ const crypto = require("crypto");
 const { Chat } = require("../models/chat");
 const ConnectionRequest = require("../models/connectionRequest");
 
+/**
+ * Generate a deterministic SHA-256 room ID for a pair of users.
+ * Sorting the user IDs ensures both users always join the exact same room.
+ */
 const getSecretRoomId = (userId, targetUserId) => {
   return crypto
     .createHash("sha256")
@@ -13,35 +17,46 @@ const getSecretRoomId = (userId, targetUserId) => {
 const initializeSocket = (server) => {
   const io = socket(server, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: (origin, callback) => {
+        // Allow all frontend origins with credentials in dev and production
+        callback(null, true);
+      },
       credentials: true,
       methods: ["GET", "POST"],
     },
+    pingTimeout: 60000,
+    pingInterval: 25000,
   });
 
   io.on("connection", (socket) => {
-    console.log("Socket connected: " + socket.id);
+    console.log("⚡ Socket client connected:", socket.id);
 
+    // 1. Join Private 1-to-1 Chat Room
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
       if (!userId || !targetUserId) {
         return;
       }
       const roomId = getSecretRoomId(userId, targetUserId);
       socket.join(roomId);
-      console.log(`${firstName || "User"} joined Room: ${roomId}`);
+      console.log(`[Socket] ${firstName || "User"} (${userId}) joined room: ${roomId}`);
     });
 
+    // 2. Real-time Send Message
     socket.on(
       "sendMessage",
-      async ({ firstName, lastName, userId, targetUserId, text }) => {
+      async ({ firstName, lastName, userId, targetUserId, text }, ackCallback) => {
         try {
           if (!userId || !targetUserId || !text || !text.trim()) {
+            if (typeof ackCallback === "function") {
+              ackCallback({ success: false, error: "Invalid message payload" });
+            }
             return;
           }
 
+          const trimmedText = text.trim();
           const roomId = getSecretRoomId(userId, targetUserId);
 
-          // Verify that userId & targetUserId are connected
+          // Verify that userId & targetUserId have an accepted connection
           const isConnected = await ConnectionRequest.findOne({
             $or: [
               { fromUserId: userId, toUserId: targetUserId, status: "accepted" },
@@ -51,11 +66,15 @@ const initializeSocket = (server) => {
 
           if (!isConnected) {
             socket.emit("chatError", {
-              message: "Cannot send message: You are not connected with this user",
+              message: "Cannot send message: You are not connected with this developer",
             });
+            if (typeof ackCallback === "function") {
+              ackCallback({ success: false, error: "Not connected" });
+            }
             return;
           }
 
+          // Retrieve or create Chat document
           let chat = await Chat.findOne({
             participants: { $all: [userId, targetUserId] },
           });
@@ -69,30 +88,58 @@ const initializeSocket = (server) => {
 
           const newMessage = {
             senderId: userId,
-            text: text.trim(),
+            text: trimmedText,
           };
 
           chat.messages.push(newMessage);
           await chat.save();
 
+          // Get the saved message with Mongoose generated _id and timestamp
+          const savedMsg = chat.messages[chat.messages.length - 1];
+
           const messagePayload = {
-            firstName,
-            lastName,
+            _id: savedMsg._id,
             senderId: userId,
-            text: text.trim(),
-            createdAt: new Date().toISOString(),
+            firstName: firstName || "",
+            lastName: lastName || "",
+            text: trimmedText,
+            createdAt: savedMsg.createdAt || new Date().toISOString(),
           };
 
+          // Broadcast to everyone in the secret room (including sender & recipient)
           io.to(roomId).emit("messageReceived", messagePayload);
+
+          if (typeof ackCallback === "function") {
+            ackCallback({ success: true, message: messagePayload });
+          }
         } catch (err) {
           console.error("Socket sendMessage error:", err);
-          socket.emit("chatError", { message: "Failed to send message: " + err.message });
+          socket.emit("chatError", {
+            message: "Failed to send message: " + err.message,
+          });
+          if (typeof ackCallback === "function") {
+            ackCallback({ success: false, error: err.message });
+          }
         }
       }
     );
 
-    socket.on("disconnect", () => {
-      console.log("Socket disconnected: " + socket.id);
+    // 3. Live Typing Indicator Events
+    socket.on("typing", ({ userId, targetUserId, firstName }) => {
+      if (!userId || !targetUserId) return;
+      const roomId = getSecretRoomId(userId, targetUserId);
+      socket.to(roomId).emit("userTyping", { userId, firstName });
+    });
+
+    socket.on("stopTyping", ({ userId, targetUserId }) => {
+      if (!userId || !targetUserId) return;
+      const roomId = getSecretRoomId(userId, targetUserId);
+      socket.to(roomId).emit("userStoppedTyping", { userId });
+    });
+
+    // 4. Socket Disconnect
+    socket.on("disconnect", (reason) => {
+      console.log(`🔌 Socket client disconnected: ${socket.id} (${reason})`);
     });
   });
 

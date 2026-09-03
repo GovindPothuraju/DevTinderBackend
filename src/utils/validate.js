@@ -16,8 +16,8 @@ const validateSignupData = (req) => {
     throw new Error("First name must be between 2 and 30 characters");
   }
 
-  if (!lastName || lastName.trim().length < 2 || lastName.trim().length > 30) {
-    throw new Error("Last name must be between 2 and 30 characters");
+  if (!lastName || lastName.trim().length < 1 || lastName.trim().length > 30) {
+    throw new Error("Last name must be between 1 and 30 characters");
   }
 
   if (!email || !validator.isEmail(email)) {
@@ -38,6 +38,7 @@ const validateProfileUpdate = (req) => {
     "photo",
     "skills",
     "about",
+    "role",
   ];
   const updates = Object.keys(req.body);
 
@@ -46,45 +47,58 @@ const validateProfileUpdate = (req) => {
     throw new Error("Invalid fields in update");
   }
 
-  const { firstName, lastName, age, gender, photo, skills, about } = req.body;
+  const { firstName, lastName, age, gender, photo, skills, about, role } = req.body;
 
   if (
-    firstName &&
-    (firstName.trim().length < 2 || firstName.trim().length > 30)
+    firstName !== undefined &&
+    (!firstName || firstName.trim().length < 2 || firstName.trim().length > 30)
   ) {
-    throw new Error("First name is invalid");
+    throw new Error("First name must be between 2 and 30 characters");
   }
 
-  if (lastName && (lastName.trim().length < 2 || lastName.trim().length > 30)) {
-    throw new Error("Last name is invalid");
+  if (
+    lastName !== undefined &&
+    (!lastName || lastName.trim().length < 1 || lastName.trim().length > 30)
+  ) {
+    throw new Error("Last name must be between 1 and 30 characters");
   }
 
-  if (age && (isNaN(age) || age < 13 || age > 120)) {
-    throw new Error("Age is invalid");
+  if (age !== undefined && age !== "" && age !== null) {
+    const numAge = Number(age);
+    if (isNaN(numAge) || numAge < 13 || numAge > 120) {
+      throw new Error("Age must be between 13 and 120");
+    }
   }
 
-  if (gender && !["male", "female", "other"].includes(gender)) {
-    throw new Error("Gender is invalid");
+  if (
+    gender !== undefined &&
+    gender !== "" &&
+    !["male", "female", "other"].includes(gender.toLowerCase())
+  ) {
+    throw new Error("Gender must be male, female, or other");
   }
 
-  if (photo && !validator.isURL(photo)) {
-    throw new Error("Photo URL is invalid");
+  if (photo && typeof photo === "string" && photo.trim()) {
+    if (!validator.isURL(photo)) {
+      throw new Error("Photo must be a valid URL");
+    }
   }
 
-  if (skills) {
+  if (role && typeof role === "string" && role.length > 50) {
+    throw new Error("Role title cannot exceed 50 characters");
+  }
+
+  if (skills !== undefined) {
     if (!Array.isArray(skills)) {
       throw new Error("Skills must be an array");
     }
-    if (skills.length === 0 || skills.length > 50) {
-      throw new Error("Skills length must be between 1 and 50");
-    }
-    if (!skills.every((skill) => typeof skill === "string" && skill.trim())) {
-      throw new Error("Each skill must be a non-empty string");
+    if (skills.length > 50) {
+      throw new Error("Skills cannot exceed 50 items");
     }
   }
 
-  if (about && (about.trim().length < 2 || about.trim().length > 300)) {
-    throw new Error("About must be between 2 and 300 characters");
+  if (about && about.length > 300) {
+    throw new Error("About section cannot exceed 300 characters");
   }
 };
 
