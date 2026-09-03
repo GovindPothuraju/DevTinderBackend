@@ -43,6 +43,18 @@ const userSchema=new mongoose.Schema({
         }
         },
     },
+    isPremium: {
+        type: Boolean,
+        default: false,
+    },
+    membershipType: {
+        type: String,
+        enum: {
+            values: ['silver', 'gold', null],
+            message: "Membership type must be either silver or gold",
+        },
+        default: null,
+    },
     },{timestamps:true})
 
 userSchema.methods.validatePassword =async function(passwordInputByUser){

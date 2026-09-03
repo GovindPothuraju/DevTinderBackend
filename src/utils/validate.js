@@ -1,10 +1,11 @@
 const validator = require("validator");
+const { membershipAmount } = require("./constants");
 
 const validateSignupData = (req) => {
   const allowedFields = ["firstName", "lastName", "email", "password"];
 
   const updates = Object.keys(req.body);
-  const isValid = updates.every(key => allowedFields.includes(key));
+  const isValid = updates.every((key) => allowedFields.includes(key));
   if (!isValid) {
     throw new Error("Invalid fields provided");
   }
@@ -29,17 +30,28 @@ const validateSignupData = (req) => {
 };
 
 const validateProfileUpdate = (req) => {
-  const allowed = ["firstName", "lastName", "age", "gender", "photo", "skills", "about"];
+  const allowed = [
+    "firstName",
+    "lastName",
+    "age",
+    "gender",
+    "photo",
+    "skills",
+    "about",
+  ];
   const updates = Object.keys(req.body);
 
-  const isValid = updates.every(key => allowed.includes(key));
+  const isValid = updates.every((key) => allowed.includes(key));
   if (!isValid) {
     throw new Error("Invalid fields in update");
   }
 
   const { firstName, lastName, age, gender, photo, skills, about } = req.body;
 
-  if (firstName && (firstName.trim().length < 2 || firstName.trim().length > 30)) {
+  if (
+    firstName &&
+    (firstName.trim().length < 2 || firstName.trim().length > 30)
+  ) {
     throw new Error("First name is invalid");
   }
 
@@ -66,14 +78,37 @@ const validateProfileUpdate = (req) => {
     if (skills.length === 0 || skills.length > 50) {
       throw new Error("Skills length must be between 1 and 50");
     }
-    if (!skills.every(skill => typeof skill === "string" && skill.trim())) {
+    if (!skills.every((skill) => typeof skill === "string" && skill.trim())) {
       throw new Error("Each skill must be a non-empty string");
     }
   }
 
   if (about && (about.trim().length < 2 || about.trim().length > 300)) {
-    throw new Error("About must be between 2 and 200 characters");
+    throw new Error("About must be between 2 and 300 characters");
   }
 };
 
-module.exports = { validateSignupData, validateProfileUpdate };
+const validatePaymentCreate = (membershipType) => {
+  if (!membershipType || !membershipAmount[membershipType]) {
+    throw new Error(
+      "Invalid membership type. Allowed options: " +
+        Object.keys(membershipAmount).join(", ")
+    );
+  }
+};
+
+const validateChatMessage = (text) => {
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    throw new Error("Message text cannot be empty");
+  }
+  if (text.length > 2000) {
+    throw new Error("Message exceeds maximum length of 2000 characters");
+  }
+};
+
+module.exports = {
+  validateSignupData,
+  validateProfileUpdate,
+  validatePaymentCreate,
+  validateChatMessage,
+};
